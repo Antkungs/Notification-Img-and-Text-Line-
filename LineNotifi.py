@@ -1,50 +1,48 @@
-import requests
+import http.client
+import json
+
 
 url = 'https://notify-api.line.me/api/notify'
 
-def send_text(token, text):
-    LINE_HEADERS = {'content-type':'application/x-www-form-urlencoded','Authorization':'Bearer '+token}
-    session_post = requests.post(url, headers=LINE_HEADERS , data = {'message':text})
-    print(session_post.text)
-
-def send_image(token, image_path, message):
-    file_img = {'imageFile': open(image_path, 'rb')}
-    LINE_HEADERS = {'Authorization':'Bearer '+token}
-    session_post = requests.post(url, headers=LINE_HEADERS, files=file_img, data={'message': message})
-    print(session_post.text)
-
-def sendCatEat(token, name , current_time):
-    image_path = 'temp.jpg'
-    message = "\nแจ้งเตือนการกินอาหาร :\n{} มากินอาหาร เวลา : {} น.".format(name,current_time)
-    send_image(token, image_path, message)
-
-def sendTankLow(token, id):
+def getToken():
     try:
-        url = f'http://localhost:3000/getNameTank/{id}'
-        responseTank = requests.get(url)
-        
-        if responseTank.status_code == 200:
-            datas = responseTank.json()
-            if datas:  # Assuming the response is a list and can have multiple items
-                for data in datas:
-                    name_tank = data.get('name_tank')
-                    
-                message = "\nแจ้งเตือนอาหารเม็ดในถังเก็บ :\nอาหารถัง {} ใกล้จะหมดกรุณาเติมอาหารเม็ด".format(name_tank)
-                send_text(token, message)
-            else:
-                print('Error: Empty response data')
+        conn = http.client.HTTPConnection('localhost', 3000)
+        conn.request('GET', '/notification')
+
+        response = conn.getresponse()
+        data = response.read()
+
+        if response.status == 200:
+            datas = json.loads(data)
+            # Assuming datas is a list of dictionaries with 'token' key
+            for data in datas:
+                token = data['token']
+            print(token)
+            conn.close()
+            return token
         else:
-            print(f'Error: Status Code {responseTank.status_code}, {responseTank.text}')
-    
-    except requests.exceptions.RequestException as e:
-        print('Error occurred while making request:', e)
-
+            print('Error:', response.status, response.reason)
+            conn.close()
     except Exception as e:
-        print('Error occurred:', e)
+        print('Error occurred while processing responseToken:', e)
+    
+def send_text(text):
+    conn = http.client.HTTPSConnection('notify-api.line.me')
+    token = "j5Vy1V07apBG2tuWIuJ4S5aolnhM7VhBRla7ZdDnYgh"
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': f'Bearer {token}'
+    }
+    body = f'message={text}'
+    conn.request('POST', '/api/notify', body, headers)
 
-def sendTankFull(token):
-    message = "\nแจ้งเตือนอาหารเม็ดในถังเหลือ :\nอาหารเม็ดใกล้จะเต็มแล้วกรุณานำไปกำจัด"
-    send_text(token,message)
+    response = conn.getresponse()
+    data = response.read()
+    print(data.decode())
+    conn.close()
+
+
+
 
 """
     while True:
